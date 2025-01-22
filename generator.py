@@ -4,7 +4,7 @@ import noise
 from random import choice, randrange
 
 
-width, height = 1000, 1000
+width, height = 800, 800
 scale = 100.0
 octaves = 10
 persistence = 0.5
@@ -60,6 +60,7 @@ def height_map_to_image(height_map):
     return image
 
 
-height_map = generate_height_map(width, height, scale, octaves, persistence, lacunarity)
-image = height_map_to_image(height_map)
-image.save('realistic_map.png')
+def main():
+    height_map = generate_height_map(width, height, scale, octaves, persistence, lacunarity)
+    image = height_map_to_image(height_map)
+    image.save('realistic_map.png')
