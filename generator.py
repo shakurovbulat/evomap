@@ -9,7 +9,7 @@ scale = 100.0
 octaves = 10
 persistence = 0.5
 lacunarity = 2.4
-n = randrange(-400, 400)
+n = randrange(-200, 200)
 
 
 def close(num):
@@ -64,3 +64,4 @@ def main():
     height_map = generate_height_map(width, height, scale, octaves, persistence, lacunarity)
     image = height_map_to_image(height_map)
     image.save('realistic_map.png')
+    return height_map

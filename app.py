@@ -109,7 +109,8 @@ class Rail:
                     to = 'ю'
             if from_ == to:
                 continue
-            name = f'images/{from_}-{to}.png'
+
+            name = f'images/rails/{from_}-{to}.png'
             scr.blit(pygame.image.load(name), (self.points[i][0] * 8 - 2, self.points[i][1] * 8 - 2))
 
     def get_points(self):
@@ -144,10 +145,18 @@ i_x, i_y = 0, 0
 dragging = False
 running = True
 screen.blit(image, (0, 0))
-ctrl = False
 rails = []
 towns = set()
+
+money = 100
+stone = 100
+iron_ore = 100
+wood = 100
+population = 0
+
+ctrl = False
 creating_rail = None
+
 # rail = Rail(0, 0, [])
 
 while running:
@@ -168,27 +177,15 @@ while running:
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
                 x, y = what_cell(*event.pos)
+                f = True
                 if isinstance(mapp[y][x], Town):
                     if creating_rail:
                         creating_rail.set_to(mapp[y][x])
                         if creating_rail.get_connect() not in [i.get_connect() for i in rails]:
+                            f = False
                             rails.append(creating_rail)
                             dragging = False
-                        else:
-                            for x in range(100):
-                                for y in range(100):
-                                    if mapp.get_map_rails_elem(x, y) == creating_rail:
-                                        mapp.set_map_rails(x, y, 0)
-                            creating_rail = None
-                            dragging = False
-                    else:
-                        for x in range(100):
-                            for y in range(100):
-                                if mapp.get_map_rails_elem(x, y) == creating_rail:
-                                    mapp.set_map_rails(x, y, 0)
-                        creating_rail = None
-                        dragging = False
-                else:
+                if f:
                     for x in range(100):
                         for y in range(100):
                             if mapp.get_map_rails_elem(x, y) == creating_rail:
