@@ -2,7 +2,7 @@ from PIL import Image
 import os
 
 # Путь к папке с изображениями
-folder_path = 'images/selected'
+folder_path = 'images'
 
 # Перебираем все файлы в папке
 for filename in os.listdir(folder_path):

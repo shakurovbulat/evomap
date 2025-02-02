@@ -242,6 +242,8 @@ class Rail:
                     to = 'ю'
             if from_ == to:
                 continue
+            if f'{from_}-{to}' not in ['в-з', 'в-с', 'в-ю', 'з-с', 'з-ю', 'с-ю', 'ю-с']:
+                from_, to = to, from_
             name = f'images/rails/{from_}-{to}.png'
             scr.blit(pygame.image.load(name), (self.points[i][0] * 8 - 2, self.points[i][1] * 8 - 2))
 
