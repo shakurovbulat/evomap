@@ -4,6 +4,7 @@ import random
 import sqlite3
 import sys
 import os
+import json
 
 screen_width = 800
 screen_height = 600
@@ -37,6 +38,33 @@ continue_game_rect = continue_game_img.get_rect(center=(screen_width // 2, load_
 new_game_rect = new_game_img.get_rect(center=(screen_width // 2, continue_game_rect.bottom + spacing - 20))
 
 
+def get_filename_input():
+    pygame.init()
+    screen = pygame.display.set_mode((600, 200))
+    pygame.display.set_caption("Введите имя сохранения")
+    font = pygame.font.Font(None, 36)
+
+    input_text = ""
+    running = True
+    while running:
+        screen.fill((30, 30, 30))
+        text_surface = font.render("Введите имя сохранения: " + input_text, True, (255, 255, 255))
+        screen.blit(text_surface, (20, 80))
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return input_text  # Возвращаем введённое имя
+                elif event.key == pygame.K_BACKSPACE:
+                    input_text = input_text[:-1]  # Удаление символа
+                elif event.unicode.isalnum():
+                    input_text += event.unicode  # Добавляем букву/цифру
+
+
 def find_save_files(directory="saves"):
     """Ищет все файлы .db в указанной папке"""
     if not os.path.exists(directory):
@@ -50,12 +78,12 @@ def load_game_menu():
     pygame.display.set_caption("Выбор сохранения")
     font = pygame.font.Font(None, 36)
 
-    files = find_save_files()
+    files = [f[:-5] for f in os.listdir("saves") if f.endswith(".json")]
     if not files:
         print("Нет сохранений!")
-        return None  # Если нет файлов, возврат в меню
+        return None
 
-    selected = 0  # Индекс выбранного файла
+    selected = 0
 
     running = True
     while running:
@@ -74,11 +102,12 @@ def load_game_menu():
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_DOWN:
-                    selected = (selected + 1) % len(files)  # Переключаем вниз
+                    selected = (selected + 1) % len(files)
                 elif event.key == pygame.K_UP:
-                    selected = (selected - 1) % len(files)  # Переключаем вверх
+                    selected = (selected - 1) % len(files)
                 elif event.key == pygame.K_RETURN:
-                    return f"saves/{files[selected]}"  # Возвращаем путь к файлу
+                    return files[selected]  # Возвращаем имя файла без .json
+
 
 
 # Функция отрисовки главного меню
@@ -407,113 +436,77 @@ pygame.display.set_caption("Стратегическая игра")
 game_mode = main_menu()
 
 
-def save_game(level, score, inventory, towns, stone, wood, food):
-    conn = sqlite3.connect('game_save.db')
-    cursor = conn.cursor()
+def save_game(filename, towns, stone, wood, food):
+    """Сохраняет игру в JSON-файл."""
+    save_data = {
+        "resources": {
+            "stone": stone,
+            "wood": wood,
+            "food": food
+        },
+        "towns": []
+    }
 
-    # Сохраняем общую информацию о игре, включая ресурсы
-    cursor.execute('''INSERT OR REPLACE INTO saves (id, level, score, inventory, stone, wood, food) 
-                      VALUES (1, ?, ?, ?, ?, ?, ?)''', (level, score, inventory, stone, wood, food))
-
-    # Сохраняем информацию о городах
-    cursor.execute('''CREATE TABLE IF NOT EXISTS towns (
-                        id INTEGER PRIMARY KEY,
-                        x INTEGER,
-                        y INTEGER,
-                        farm_level INTEGER,
-                        quarry_level INTEGER,
-                        sawmill_level INTEGER,
-                        town_level INTEGER,
-                        population INTEGER,
-                        food INTEGER
-                    )''')
-
-    # Очищаем старые данные о городах
-    cursor.execute('DELETE FROM towns')
-
-    # Сохраняем данные о каждом городе
     for town in towns:
-        cursor.execute('''INSERT INTO towns (x, y, farm_level, quarry_level, sawmill_level, town_level, population, food)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                       (town.location[0], town.location[1], town.farm_level, town.quarry_level, town.sawmill_level,
-                        town.town_level, town.population, town.food))
+        save_data["towns"].append({
+            "x": town.location[0],
+            "y": town.location[1],
+            "farm_level": town.farm_level,
+            "quarry_level": town.quarry_level,
+            "sawmill_level": town.sawmill_level,
+            "town_level": town.town_level,
+            "population": town.population,
+            "food": town.food
+        })
 
-    conn.commit()
-    conn.close()
+    os.makedirs("saves", exist_ok=True)  # Создаём папку saves, если её нет
+    with open(f"saves/{filename}.json", "w", encoding="utf-8") as f:
+        json.dump(save_data, f, indent=4)
+
+    print(f"Игра сохранена в {filename}.json")
 
 
-def load_game():
-    conn = sqlite3.connect('game_save.db')
-    cursor = conn.cursor()
-
-    # Загружаем общую информацию о игре, включая ресурсы
-    cursor.execute('SELECT level, score, inventory, stone, wood, food FROM saves WHERE id = 1')
-    result = cursor.fetchone()
-
-    if result:
-        level, score, inventory, stone, wood, food = result  # Загружаем ресурсы
-
-        # Загружаем информацию о городах
-        cursor.execute('SELECT x, y, farm_level, quarry_level, sawmill_level, town_level, population, food FROM towns')
-        towns_data = cursor.fetchall()
-
-        # Генерируем карту ресурсов
-        resourses_map = generate_resources_map()
-
-        towns = set()
-        for town_data in towns_data:
-            x, y, farm_level, quarry_level, sawmill_level, town_level, population, food = town_data
-            town = Town(x, y, resourses_map)
-            town.farm_level = farm_level
-            town.quarry_level = quarry_level
-            town.sawmill_level = sawmill_level
-            town.town_level = town_level
-            town.population = population
-            town.food = food
-            towns.add(town)
-
-        conn.close()
-        return level, score, inventory, towns, resourses_map, stone, wood, food
-    else:
-        conn.close()
+def load_game(filename):
+    """Загружает игру из JSON-файла."""
+    try:
+        with open(f"saves/{filename}.json", "r", encoding="utf-8") as f:
+            save_data = json.load(f)
+    except FileNotFoundError:
+        print(f"Ошибка: Файл {filename}.json не найден.")
         return None
+
+    stone = save_data["resources"]["stone"]
+    wood = save_data["resources"]["wood"]
+    food = save_data["resources"]["food"]
+
+    resourses_map = generate_resources_map()
+    towns = set()
+    for town_data in save_data["towns"]:
+        x, y = town_data["x"], town_data["y"]
+        town = Town(x, y, resourses_map)
+        town.farm_level = town_data["farm_level"]
+        town.quarry_level = town_data["quarry_level"]
+        town.sawmill_level = town_data["sawmill_level"]
+        town.town_level = town_data["town_level"]
+        town.population = town_data["population"]
+        town.food = town_data["food"]
+        towns.add(town)
+
+    print(f"Игра загружена из {filename}.json")
+    return towns, resourses_map, stone, wood, food
 
 
 if game_mode == "load_world":
-    save_file = load_game_menu()  # Вызываем меню выбора файла
+    save_file = load_game_menu()
     if not save_file:
         print("Файл не выбран. Возврат в меню.")
         sys.exit()
 
-    conn = sqlite3.connect(save_file)
-    cursor = conn.cursor()
+    saved_game = load_game(save_file)
+    if saved_game:
+        towns, resourses_map, stone, wood, food = saved_game
 
-    # Загружаем данные из сохранения
-    cursor.execute('SELECT level, score, inventory, stone, wood, food FROM saves WHERE id = 1')
-    result = cursor.fetchone()
-
-    if result:
-        level, score, inventory, stone, wood, food = result
-
-        cursor.execute('SELECT x, y, farm_level, quarry_level, sawmill_level, town_level, population, food FROM towns')
-        towns_data = cursor.fetchall()
-
-        resourses_map = generate_resources_map()
-        towns = set()
-        for town_data in towns_data:
-            x, y, farm_level, quarry_level, sawmill_level, town_level, population, food = town_data
-            town = Town(x, y, resourses_map)
-            town.farm_level = farm_level
-            town.quarry_level = quarry_level
-            town.sawmill_level = sawmill_level
-            town.town_level = town_level
-            town.population = population
-            town.food = food
-            towns.add(town)
-
-        conn.close()
-
-        print(f"Игра загружена из {save_file}: уровень {level}, очки {score}, камни: {stone}, дерево: {wood}, еда: {food}")
+        print(f"Игра загружена: камни: {stone}, дерево: {wood}, еда: {food}")
 
         # Запускаем игровой процесс
         mapp = Map()
@@ -521,10 +514,8 @@ if game_mode == "load_world":
             mapp[town.location[1]][town.location[0]] = town
 
     else:
-        conn.close()
-        print("Ошибка: сохранение повреждено или пустое.")
+        print("Ошибка: сохранение повреждено.")
         sys.exit()
-
 elif game_mode == "new_game":
     print("Начало новой игры...")
     mapp = Map()
@@ -540,21 +531,33 @@ elif game_mode == "new_game":
     towns.add(start_town)
 
 if game_mode == "continue_game":
-    saved_game = load_game()
+    save_file = "autosave"
+
+    saved_game = load_game(save_file)
     if saved_game:
-        level, score, inventory, towns, resourses_map, stone, wood, food = saved_game  # Загружаем ресурсы
-        print(f"Продолжение игры: уровень {level}, очки {score}, инвентарь: {inventory}, камни: {stone}, дерево: {wood}, еда: {food}")
+        towns, resourses_map, stone, wood, food = saved_game
+        print(f"Продолжение игры: камни: {stone}, дерево: {wood}, еда: {food}")
 
-        # Восстанавливаем состояние игры
+        # Восстанавливаем игровую карту
         mapp = Map()
-
-        # Восстанавливаем города на карте
         for town in towns:
             mapp[town.location[1]][town.location[0]] = town
-
     else:
-        print("Нет сохранений, начинайте новую игру.")
-        sys.exit()
+        print("Нет автосохранения. Начинаем новую игру.")
+        mapp = Map()
+        resourses_map = generate_resources_map()
+        towns = set()  # Создаём пустой список городов для новой игры
+        stone = 100
+        wood = 100
+        food = 100
+        # Размещение начального города
+        start_x, start_y = random.randint(0, 15), random.randint(0, 15)
+        start_town = Town(start_x, start_y, resourses_map)
+        mapp[start_y][start_x] = start_town
+        towns.add(start_town)
+
+
+
 
 # Продолжение настройки игры
 screen_width, screen_height = 800, 800
@@ -594,10 +597,12 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_F5:  # Сохраняем игру по нажатию F5
-                create_db()
-                save_game(1, 0, "inventory", towns, stone, wood, food)  # Теперь передаём ресурсы
-                print("Игра сохранена!")
+            if event.key == pygame.K_F5:
+                filename = get_filename_input()
+                if filename.strip() == "":
+                    filename = "autosave"
+                save_game(filename, towns, stone, wood, food)
+                print(f"Игра сохранена в {filename}.json!")
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 x1, y1 = event.pos
@@ -732,5 +737,6 @@ while running:
         draw_grid(screen, screen_width, screen_height, 16)
 
     pygame.display.flip()
-
+save_game("autosave", towns, stone, wood, food)
+print("Автосохранение перед выходом...")
 pygame.quit()
