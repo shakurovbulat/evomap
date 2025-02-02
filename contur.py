@@ -43,7 +43,7 @@ def outline_image(input_path, output_path):
 
 
 # Пример использования
-input_image_path = 'images/molot.png'  # Путь к исходному изображению
-output_image_path = 'images/selected/molot.png'  # Путь к выходному изображению
+input_image_path = 'images/stone.png'  # Путь к исходному изображению
+output_image_path = 'images/selected/stone.png'  # Путь к выходному изображению
 
 outline_image(input_image_path, output_image_path)

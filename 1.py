@@ -20,8 +20,8 @@ for filename in os.listdir(folder_path):
 
         new_data = []
         for item in datas:
-            # Заменяем белые пиксели на прозрачные
-            if item[:3] == (255, 255, 255):
+            r, g, b = item[:3]
+            if r in range(220, 256) and g in range(220, 256) and b in range(220, 256):
                 new_data.append((255, 255, 255, 0))
             else:
                 new_data.append(item)

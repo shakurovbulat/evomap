@@ -3,35 +3,61 @@ from generator import main
 import random
 
 
+def draw_table(surface, x, y, n1, n2, n3, screen_width=800, screen_height=800):
+    """
+    Рисует табличку с коэффициентами, всегда остающуюся в пределах экрана.
+    """
+    # Создаём текстовые поверхности
+    text1 = font.render(f"Кэф_дерева: {n1:.2f}", True, (255, 255, 255))
+    text2 = font.render(f"Кэф_камня: {n2:.2f}", True, (255, 255, 255))
+    text3 = font.render(f"Кэф_еды: {n3:.2f}", True, (255, 255, 255))
+
+    # Рассчитываем размеры таблицы
+    padding = 10
+    text_height = text1.get_height()
+    table_width = max(text1.get_width(), text2.get_width(), text3.get_width()) + 2*padding
+    table_height = 3*text_height + 4*padding
+
+    # Начальная позиция (над курсором)
+    table_x = x
+    table_y = y - table_height - 10  # Смещение вверх
+
+    # Корректировка позиции по горизонтали
+    if table_x + table_width > screen_width:
+        table_x = screen_width - table_width - 10  # Правая граница
+    elif table_x < 0:
+        table_x = 10  # Левая граница
+
+    # Корректировка позиции по вертикали
+    if table_y < 0:
+        table_y = y + 20  # Если не влезает сверху, показываем снизу
+    elif table_y + table_height > screen_height:
+        table_y = screen_height - table_height - 10  # Нижняя граница
+
+    # Рисуем фон
+    pygame.draw.rect(surface, (100, 100, 100), (table_x, table_y, table_width, table_height))
+    pygame.draw.rect(surface, (0, 0, 0), (table_x, table_y, table_width, table_height), 2)
+
+    # Располагаем текст
+    y_offset = padding
+    for text in [text1, text2, text3]:
+        surface.blit(text, (table_x + padding, table_y + y_offset))
+        y_offset += text_height + padding
+
+
 def calculate_kefs(x, y):
     x, y = what_cell_resources(x, y)
     res = resourses_map[y][x]
     mi, sr, ma = res
     k_wood, k_stone, k_food = 0, 0, 0
-    if sr < 100:
-       k_food = 1.5
-    elif 100 <= sr <= 180:
-        if mi < 100:
-            if ma < 180:
-                k_wood = 1.2
-                k_food = 2
-                k_stone = 0.8
-            else:
-                k_wood = 0.8
-                k_food = 0.8
-                k_stone = 2
-        else:
-            if ma < 180:
-                k_wood = 2
-                k_food = 2
-                k_stone = 0.5
-            else:
-                k_wood = 0.5
-                k_food = 0.3
-                k_stone = 2
-    else:
-        k_stone = 3
-    return k_wood, k_stone, k_food
+    res_color = (0, 0, 100)
+    k_wood = 3 * (1 - max(50 - mi, 0) / 50) * (1 - abs(sr - 100) / 80) * (1 - max(ma - 180, 0) / 75)
+    k_wood = max(0, min(k_wood, 3))
+    k_stone = 3 * (max(sr - 100, 0) / 80) * (max(ma - 100, 0) / 80) * max((200 - mi) / 100, 0)
+    k_stone = max(0, min(k_stone, 3))
+    k_food = 3 * (1 - abs(sr - 150) / 100) * (1 - max(100 - mi, 0) / 100) * (1 - max(ma - 200, 0) / 55)
+    k_food = max(0, min(k_food, 3))
+    return round(k_wood, 1), round(k_stone, 1), round(k_food, 1)
 
 
 def process_matrix(matrix):
@@ -242,7 +268,7 @@ class Rail:
                     to = 'ю'
             if from_ == to:
                 continue
-            if f'{from_}-{to}' not in ['в-з', 'в-с', 'в-ю', 'з-с', 'з-ю', 'с-ю', 'ю-с']:
+            if f'{from_}-{to}' not in ['в-з', 'в-с', 'в-ю', 'з-с', 'з-ю', 'с-ю']:
                 from_, to = to, from_
             name = f'images/rails/{from_}-{to}.png'
             scr.blit(pygame.image.load(name), (self.points[i][0] * 8 - 2, self.points[i][1] * 8 - 2))
@@ -271,15 +297,14 @@ pygame.init()
 mapp = Map()
 height_map = generate_world_map()
 resourses_map = process_matrix([[int((j + 0.5) * 255) for j in i] for i in height_map])
-for i in resourses_map:
-    print(i)
-screen_width, screen_height = 800, 800
+screen_width, screen_height = 800, 900
 expanded_width = 1000  # Новая ширина окна при расширении
 screen = pygame.display.set_mode((screen_width, screen_height))
 image = pygame.image.load('realistic_map.png')
 i_x, i_y = 0, 0
 dragging = False
 running = True
+building_town = False
 screen.blit(image, (0, 0))
 rails = []
 towns = set()
@@ -290,14 +315,25 @@ wood = 100
 food = 100  # Начальная еда
 
 # Размещение начального города
-start_x, start_y = random.randint(0, 15), random.randint(0, 15)
+start_x, start_y = random.randint(0, 49), random.randint(0, 49)
 start_town = Town(start_x, start_y)
 mapp[start_y][start_x] = start_town
 towns.add(start_town)
+molot_image = pygame.image.load('images/molot.png')
+resurses = pygame.image.load('images/resurses.png')
+molot_image_x = range(802, 834)
+molot_image_y = range(768, 800)
+build_rails = pygame.image.load('images/build_rails.png')
+build_rails_x = range(802, 834)
+build_rails_y = range(736, 768)
+font = pygame.font.Font(None, 24)
+FOOD_UPDATE_INTERVAL = 100  # 10 секунд
+last_food_update = pygame.time.get_ticks()
 
 selected_town = None
 ctrl = False
 creating_rail = None
+choicing_town = False
 
 # Кнопки улучшений
 button_font = pygame.font.SysFont(None, 24)
@@ -307,6 +343,7 @@ buttons = [
     {"text": "Лесопилка", "rect": pygame.Rect(820, 90, 160, 30), "action": "sawmill"},
     {"text": "Уровень города", "rect": pygame.Rect(820, 130, 160, 30), "action": "town"}
 ]
+
 
 # Таймер для обновления населения и еды
 UPDATE_INTERVAL = 10000
@@ -325,6 +362,19 @@ while running:
                 x1, y1 = event.pos
                 x, y = what_cell(*event.pos)
                 f = True
+                if choicing_town:
+                    creating_rail = Rail(selected_town, None, [])
+                    dragging = True
+                    choicing_town = False
+                if building_town:
+                    if mapp[y][x] == 0 and stone > 50 and wood > 50 and selected_town.population and 0 <= x < 50 and 0 <= y < 50:
+                        selected_town.population -= 50
+                        stone -= 50
+                        wood -= 50
+                        town = Town(x, y)
+                        mapp[y][x] = Town(x, y)
+                        towns.add(town)
+                    building_town = False
                 if selected_town:
                     for button in buttons:
                         if button["rect"].collidepoint(event.pos):
@@ -345,6 +395,11 @@ while running:
                                 stone -= 30 * selected_town.farm_level
                                 wood -= 30 * selected_town.farm_level
                                 selected_town.upgrade_town()
+                    x2, y2 = event.pos
+                    if x2 in molot_image_x and y2 in molot_image_y:
+                        building_town = True
+                    if x2 in build_rails_x and y2 in build_rails_y:
+                        choicing_town = True
                 if isinstance(mapp[y][x], Town):
                     f = False
                     selected_town = mapp[y][x]
@@ -352,17 +407,6 @@ while running:
                 if f and 0 <= x1 <= 800 and 0 <= y1 <= 800:
                     selected_town = None
                     screen = pygame.display.set_mode((screen_width, screen_height))
-            elif event.button == 3:
-                if selected_town:
-                    if selected_town.population >= 100 and selected_town.food >= 100 and stone >= 50 and wood >= 50:
-                        x, y = what_cell(*event.pos)
-                        if mapp[y][x] == 0:
-                            wood, stone = wood - 50, stone - 50
-                            selected_town.population -= 100
-                            selected_town.food -= 100
-                            town = Town(x, y)
-                            mapp[y][x] = Town(x, y)
-                            towns.add(town)
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
                 x, y = what_cell(*event.pos)
@@ -391,6 +435,26 @@ while running:
     for town in towns:
         town.set_image('images/house4 (2).png')
 
+    if current_time - last_food_update >= FOOD_UPDATE_INTERVAL:
+        networks = []
+        for rail in rails:
+            connected = False
+            for network in networks:
+                if rail.from_ in network or rail.to in network:
+                    network.update({rail.from_, rail.to})
+                    connected = True
+                    break
+            if not connected:
+                networks.append({rail.from_, rail.to})
+
+        for network in networks:
+            total_food = sum(town.food for town in network)
+            avg_food = total_food / len(network)
+            for town in network:
+                town.food = int(avg_food)
+
+        last_food_update = current_time
+
     x, y = what_cell(*pygame.mouse.get_pos())
     if isinstance(mapp[y][x], Town):
         for town in towns:
@@ -416,6 +480,8 @@ while running:
             town.upgrade_resurses()
         last_update_res_time = res_time  # Обновляем время последнего обновления
 
+    print([town.food for town in towns])
+
     screen.blit(image, (0, 0))
     if creating_rail:
         creating_rail.show(screen)
@@ -423,13 +489,22 @@ while running:
         i.show(screen)
     for i in towns:
         i.show(screen)
-    screen.blit(button_font.render(f'wood: {wood}                 stone: {stone}', True, (255, 255, 255)), (10, 750))
+    screen.blit(resurses, (0, 800))
+    screen.blit(button_font.render(str(stone), True, (255, 255, 255)), (120, 840))
+    screen.blit(button_font.render(str(wood), True, (255, 255, 255)), (550, 840))
+    if building_town:
+        x, y = pygame.mouse.get_pos()
+        if 0 <= x < 800 and 0 <= y < 800:
+            draw_table(screen, x, y, *calculate_kefs(x, y))
 
     if selected_town:
         for town in towns:
             if town.location == selected_town.location:
                 selected_town = town
-        pygame.draw.rect(screen, (50, 50, 50), (800, 0, 200, 800))  # Фон панели
+        pygame.draw.rect(screen, (50, 50, 50), (800, 0, 200, 800))
+        pygame.draw.line(screen, (185, 122, 87), (800, 0), (800, 802), width=2)
+        pygame.draw.line(screen, (185, 122, 87), (800, 0), (1000, 0), width=2)
+        pygame.draw.line(screen, (185, 122, 87), (997, 0), (997, 802), width=2)
         info_text = [
             f"Ферма: {selected_town.farm_level}",
             f"Шахта: {selected_town.quarry_level}",
@@ -437,11 +512,13 @@ while running:
             f"Уровень города: {selected_town.town_level}",
             f"Население: {selected_town.population}",
             f"Еда: {selected_town.food}",
-            f'kefs: {selected_town.k_wood, selected_town.k_stone, selected_town.k_food}'
+            f'Кэф_дерево: {selected_town.k_wood}',
+            f'Кэф_камень: {selected_town.k_stone}',
+            f'Кэф_еда: {selected_town.k_food}'
         ]
         for idx, text in enumerate(info_text):
             info_surface = button_font.render(text, True, (255, 255, 255))
-            screen.blit(info_surface, (810, 170 + idx * 30))
+            screen.blit(info_surface, (830, 170 + idx * 30))
 
 
         # Отрисовка кнопок улучшений
@@ -450,8 +527,11 @@ while running:
             text_surface = button_font.render(button["text"], True, (255, 255, 255))
             screen.blit(text_surface, (button["rect"].x + 10, button["rect"].y + 5))
 
+        screen.blit(molot_image, (802, 768))
+        screen.blit(build_rails, (802, 736))
+
     if ctrl:
-        draw_grid(screen, screen_width, screen_height, 16)
+        draw_grid(screen, screen_width, screen_height, 32)
 
     pygame.display.flip()
 
