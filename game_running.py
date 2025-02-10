@@ -107,8 +107,8 @@ def main(
                         dragging = True
                         choicing_town = False
                     if building_town:
-                        if mapp[y][x] == 0 and stone > 50 and wood > 50 and selected_town.population >= 120 and 0 <= x < 50 and 0 <= y < 50:
-                            selected_town.population -= 100
+                        if mapp[y][x] == 0 and stone > 50 and wood > 50 and selected_town.population >= 70 and 0 <= x < 50 and 0 <= y < 50:
+                            selected_town.population -= 50
                             s -= 50
                             w -= 50
                             town = Town(x, y, resourses_map)
@@ -203,9 +203,11 @@ def main(
 
         if dragging:
             if what_cell_rail(*pygame.mouse.get_pos()) not in creating_rail.get_points():
-                x, y = what_cell_rail(*pygame.mouse.get_pos())
-                mapp.set_map_rails(x, y, creating_rail)
-                creating_rail.set_point(what_cell_rail(*pygame.mouse.get_pos()))
+                x1, y1 = pygame.mouse.get_pos()
+                if 0 < x1 < 800 and 0 < y< 800:
+                    x, y = what_cell_rail(*pygame.mouse.get_pos())
+                    mapp.set_map_rails(x, y, creating_rail)
+                    creating_rail.set_point(what_cell_rail(*pygame.mouse.get_pos()))
 
         # Обновление населения и еды раз в 10 секунд
         if current_time - last_update_time >= UPDATE_INTERVAL:
