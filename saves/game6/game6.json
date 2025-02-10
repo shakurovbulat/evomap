@@ -6,14 +6,14 @@
     },
     "towns": [
         {
-            "x": 1,
-            "y": 3,
+            "x": 20,
+            "y": 0,
             "farm_level": 1,
             "quarry_level": 1,
-            "sawmill_level": 2,
-            "town_level": 2,
-            "population": 60,
-            "food": 113,
+            "sawmill_level": 1,
+            "town_level": 1,
+            "population": 100,
+            "food": 80,
             "resourses_map": [
                 [
                     [
@@ -3193,14 +3193,14 @@
             ]
         },
         {
-            "x": 20,
-            "y": 0,
+            "x": 1,
+            "y": 3,
             "farm_level": 1,
             "quarry_level": 1,
-            "sawmill_level": 1,
-            "town_level": 1,
-            "population": 100,
-            "food": 80,
+            "sawmill_level": 2,
+            "town_level": 2,
+            "population": 60,
+            "food": 113,
             "resourses_map": [
                 [
                     [

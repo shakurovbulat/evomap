@@ -33,6 +33,7 @@ def main(
         wood,
         resourses_map,
         name_for_save):
+    global selected_town
     dragging = False
     running = True
     building_town = False

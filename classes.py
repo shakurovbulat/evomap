@@ -21,12 +21,12 @@ class Button:
         text_rect = text_surf.get_rect(center=self.rect.center)
         surface.blit(text_surf, text_rect)
 
-    def handle_event(self, event):
+    def handle_event(self, event, params=[]):
         if event.type == pygame.MOUSEMOTION:
             self.hovered = self.rect.collidepoint(event.pos)
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if self.hovered and self.action:
-                self.action(self.screen)
+                self.action(self.screen, *params)
 
 
 class Rail:
@@ -120,8 +120,8 @@ class Town:
         self.k_wood, self.k_stone, self.k_food = calculate_kefs(x * 16, y * 16, resourses_map)
         self.resourses_map = resourses_map
 
-    def show(self, scr):
-        scr.blit(pygame.image.load(self.image), (self.location[0] * 16 - 8, self.location[1] * 16 - 8))
+    def show(self, screen):
+        screen.blit(pygame.image.load(self.image), (self.location[0] * 16 - 8, self.location[1] * 16 - 8))
 
     def upgrade_farm(self):
         self.farm_level += 1
